@@ -1,10 +1,9 @@
 const mario = document.getElementById('mario');
-const hinder = document.querySelector('.hinder');
+const hindre = document.querySelectorAll('.hinder');
 let posisjon = 400; // Startposisjon midt på skjermen
 let hoppFart = 0;
 let gravitasjon = 0.6;
 let påBakken = true;
-let hinderPosisjon = 800;
 let spillSlutt = false;
 
 let bevegerHøyre = false;
@@ -56,7 +55,7 @@ function oppdaterMario() {
         påBakken = true;
         hoppFart = 0;
     } else if (påHinder()) {
-        nyPosisjon = hinder.getBoundingClientRect().height + 50;
+        nyPosisjon = parseInt(påHinder().style.height) + 50;
         påBakken = true;
         hoppFart = 0;
     } else {
@@ -66,38 +65,47 @@ function oppdaterMario() {
     mario.style.bottom = nyPosisjon + 'px';
 }
 
-function flyttHinder() {
-    hinderPosisjon -= 5;
-    hinder.style.right = hinderPosisjon + 'px';
-    if (hinderPosisjon < -30) {
-        hinderPosisjon = 800;
-    }
-    sjekkKollisjon();
+function flyttHindre() {
+    hindre.forEach(hinder => {
+        let hinderPosisjon = parseInt(hinder.style.right);
+        hinderPosisjon -= 2;
+        if (hinderPosisjon < -50) {
+            hinderPosisjon = 800;
+        }
+        hinder.style.right = hinderPosisjon + 'px';
+    });
 }
 
 function sjekkKollisjon() {
     const marioRect = mario.getBoundingClientRect();
-    const hinderRect = hinder.getBoundingClientRect();
     const spillRect = document.getElementById('spill').getBoundingClientRect();
-    
-    if (
-        marioRect.right > hinderRect.left &&
-        marioRect.left < hinderRect.right &&
-        marioRect.bottom > hinderRect.top &&
-        marioRect.top < hinderRect.bottom
-    ) {
-        // Sjekk om Mario lander på toppen av hinderet
-        if (marioRect.bottom <= hinderRect.top + 10 && hoppFart > 0) {
-            // Mario lander på toppen av hinderet
-            påBakken = true;
-            hoppFart = 0;
-            mario.style.bottom = (hinderRect.height + 50) + 'px';
-        } else {
-            // Mario kolliderer med siden av hinderet
-            spillSlutt = true;
-            alert('Spill over!');
+
+    hindre.forEach(hinder => {
+        const hinderRect = hinder.getBoundingClientRect();
+        
+        if (
+            marioRect.right > hinderRect.left &&
+            marioRect.left < hinderRect.right &&
+            marioRect.bottom > hinderRect.top &&
+            marioRect.top < hinderRect.bottom
+        ) {
+            // Sjekk om Mario lander på toppen av hinderet
+            if (marioRect.bottom <= hinderRect.top + 10 && hoppFart > 0) {
+                // Mario lander på toppen av hinderet
+                påBakken = true;
+                hoppFart = 0;
+                mario.style.bottom = (hinderRect.height + 50) + 'px';
+            } else if (marioRect.right > hinderRect.left + 5 && marioRect.left < hinderRect.right - 5) {
+                // Mario kolliderer med toppen eller bunnen av hinderet
+                spillSlutt = true;
+                alert('Spill over! Du traff et hinder.');
+            } else {
+                // Mario kolliderer med siden av hinderet
+                spillSlutt = true;
+                alert('Spill over! Du traff et hinder.');
+            }
         }
-    }
+    });
 
     // Sjekk om Mario er utenfor spillområdet
     if (marioRect.right > spillRect.right || marioRect.left < spillRect.left) {
@@ -105,25 +113,30 @@ function sjekkKollisjon() {
         alert('Spill over! Du gikk ut av banen.');
     }
     
-    console.log('Mario posisjon:', marioRect.bottom, 'Hinder topp:', hinderRect.top, 'Hopp fart:', hoppFart);
+    console.log('Mario posisjon:', marioRect.bottom, 'Hopp fart:', hoppFart);
 }
 
 function påHinder() {
     const marioRect = mario.getBoundingClientRect();
-    const hinderRect = hinder.getBoundingClientRect();
-    
-    return (
-        marioRect.right > hinderRect.left &&
-        marioRect.left < hinderRect.right &&
-        Math.abs(marioRect.bottom - hinderRect.top) < 5 &&
-        hoppFart >= 0
-    );
+    for (let hinder of hindre) {
+        const hinderRect = hinder.getBoundingClientRect();
+        if (
+            marioRect.right > hinderRect.left + 5 &&
+            marioRect.left < hinderRect.right - 5 &&
+            Math.abs(marioRect.bottom - hinderRect.top) < 5 &&
+            hoppFart >= 0
+        ) {
+            return hinder;
+        }
+    }
+    return null;
 }
 
 function spillLoop() {
     if (!spillSlutt) {
         oppdaterMario();
-        flyttHinder();
+        flyttHindre();
+        sjekkKollisjon();
         requestAnimationFrame(spillLoop);
     }
 }
