@@ -1,0 +1,34 @@
+#spill {
+    width: 800px;
+    height: 400px;
+    background-color: skyblue;
+    position: relative;
+    overflow: hidden;
+}
+
+#mario {
+    width: 50px;
+    height: 50px;
+    background-color: red;
+    position: absolute;
+    bottom: 50px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+#bakke {
+    width: 100%;
+    height: 50px;
+    background-color: green;
+    position: absolute;
+    bottom: 0;
+}
+
+.hinder {
+    width: 30px;
+    height: 60px;
+    background-color: brown;
+    position: absolute;
+    bottom: 50px;
+    right: -30px;
+}
