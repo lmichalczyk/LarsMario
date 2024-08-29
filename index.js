@@ -1,10 +1,14 @@
 const mario = document.getElementById('mario');
 const hindre = document.querySelectorAll('.hinder');
-let posisjon = 400; // Startposisjon midt på skjermen
+const spill = document.getElementById('spill');
+const startPåNyttKnapp = document.getElementById('startPåNytt');
+const livTeller = document.getElementById('livTeller');
+let posisjon = 400;
 let hoppFart = 0;
 let gravitasjon = 0.6;
 let påBakken = true;
 let spillSlutt = false;
+let liv = 3;
 
 let bevegerHøyre = false;
 let bevegerVenstre = false;
@@ -29,113 +33,223 @@ document.addEventListener('keyup', (e) => {
 });
 
 function hopp() {
-    if (påBakken || påHinder()) {
+    if (påBakken) {
         påBakken = false;
-        hoppFart = -15; // Negativ verdi for å hoppe oppover
+        hoppFart = -15;
     }
 }
 
 function oppdaterMario() {
-    // Oppdater horisontal posisjon
+    let nyPosisjon = posisjon;
     if (bevegerHøyre) {
-        posisjon += 5;
+        nyPosisjon += 5;
     }
     if (bevegerVenstre) {
-        posisjon -= 5;
+        nyPosisjon -= 5;
     }
-    mario.style.left = posisjon + 'px';
+
+    // Sjekk kollisjon med hindre og spørsmålsblokker før vi oppdaterer posisjonen
+    const marioRect = mario.getBoundingClientRect();
+    const elementer = document.querySelectorAll('.hinder, .spørsmålsblokk');
+    let kanFlytte = true;
+
+    elementer.forEach(element => {
+        const elementRect = element.getBoundingClientRect();
+        if (
+            (nyPosisjon < elementRect.right && 
+             nyPosisjon + marioRect.width > elementRect.left) &&
+            (marioRect.bottom > elementRect.top &&
+             marioRect.top < elementRect.bottom)
+        ) {
+            kanFlytte = false;
+        }
+    });
+
+    if (kanFlytte) {
+        posisjon = nyPosisjon;
+        mario.style.left = posisjon + 'px';
+    }
 
     // Oppdater vertikal posisjon
     hoppFart += gravitasjon;
-    let nyPosisjon = parseInt(mario.style.bottom) - hoppFart;
+    let nyVertikalPosisjon = parseInt(mario.style.bottom) - hoppFart;
 
-    // Sjekk om Mario er på bakken eller på et hinder
-    if (nyPosisjon <= 50 && !påHinder()) {
-        nyPosisjon = 50;
-        påBakken = true;
-        hoppFart = 0;
-    } else if (påHinder()) {
-        nyPosisjon = parseInt(påHinder().style.height) + 50;
+    if (nyVertikalPosisjon <= 50) {
+        nyVertikalPosisjon = 50;
         påBakken = true;
         hoppFart = 0;
     } else {
         påBakken = false;
     }
 
-    mario.style.bottom = nyPosisjon + 'px';
+    mario.style.bottom = nyVertikalPosisjon + 'px';
 }
 
-function flyttHindre() {
-    hindre.forEach(hinder => {
-        let hinderPosisjon = parseInt(hinder.style.right);
-        hinderPosisjon -= 2;
-        if (hinderPosisjon < -50) {
-            hinderPosisjon = 800;
+function flyttHindreOgBlokker() {
+    const elementer = document.querySelectorAll('.hinder, .spørsmålsblokk');
+    elementer.forEach(element => {
+        let elementPosisjon = parseInt(element.style.right);
+        elementPosisjon -= 2;
+        if (elementPosisjon < -50) {
+            if (element.classList.contains('spørsmålsblokk')) {
+                element.remove();
+            } else {
+                elementPosisjon = 800;
+            }
         }
-        hinder.style.right = hinderPosisjon + 'px';
+        element.style.right = elementPosisjon + 'px';
     });
+
+    // Legg til nye spørsmålsblokker
+    if (Math.random() < 0.01 && document.querySelectorAll('.spørsmålsblokk').length < 3) {
+        leggTilSpørsmålsblokk();
+    }
+}
+
+function leggTilSpørsmålsblokk() {
+    const nyBlokk = document.createElement('div');
+    nyBlokk.className = 'spørsmålsblokk';
+    nyBlokk.style.right = '800px';
+    
+    let gyldigPosisjon = false;
+    let forsøk = 0;
+    const maksForøk = 10;
+
+    while (!gyldigPosisjon && forsøk < maksForøk) {
+        let nyPosisjon = Math.floor(Math.random() * 3) * 50 + 100;
+        nyBlokk.style.bottom = `${nyPosisjon}px`;
+        
+        gyldigPosisjon = true;
+        const elementer = document.querySelectorAll('.hinder, .spørsmålsblokk');
+        elementer.forEach(element => {
+            const elementRect = element.getBoundingClientRect();
+            const nyBlokkRect = nyBlokk.getBoundingClientRect();
+            
+            if (
+                Math.abs(parseInt(element.style.right) - 800) < 100 &&
+                Math.abs(parseInt(element.style.bottom) - nyPosisjon) < 50
+            ) {
+                gyldigPosisjon = false;
+            }
+        });
+        
+        forsøk++;
+    }
+
+    if (gyldigPosisjon) {
+        spill.appendChild(nyBlokk);
+    }
 }
 
 function sjekkKollisjon() {
     const marioRect = mario.getBoundingClientRect();
-    const spillRect = document.getElementById('spill').getBoundingClientRect();
+    const spillRect = spill.getBoundingClientRect();
 
-    hindre.forEach(hinder => {
-        const hinderRect = hinder.getBoundingClientRect();
+    const elementer = document.querySelectorAll('.hinder, .spørsmålsblokk');
+    elementer.forEach(element => {
+        const elementRect = element.getBoundingClientRect();
         
         if (
-            marioRect.right > hinderRect.left &&
-            marioRect.left < hinderRect.right &&
-            marioRect.bottom > hinderRect.top &&
-            marioRect.top < hinderRect.bottom
+            marioRect.right > elementRect.left &&
+            marioRect.left < elementRect.right &&
+            marioRect.bottom > elementRect.top &&
+            marioRect.top < elementRect.bottom
         ) {
-            // Sjekk om Mario lander på toppen av hinderet
-            if (marioRect.bottom <= hinderRect.top + 10 && hoppFart > 0) {
-                // Mario lander på toppen av hinderet
-                påBakken = true;
-                hoppFart = 0;
-                mario.style.bottom = (hinderRect.height + 50) + 'px';
-            } else if (marioRect.right > hinderRect.left + 5 && marioRect.left < hinderRect.right - 5) {
-                // Mario kolliderer med toppen eller bunnen av hinderet
-                spillSlutt = true;
-                alert('Spill over! Du traff et hinder.');
-            } else {
-                // Mario kolliderer med siden av hinderet
-                spillSlutt = true;
-                alert('Spill over! Du traff et hinder.');
+            if (element.classList.contains('hinder')) {
+                if (marioRect.bottom <= elementRect.top + 10 && hoppFart > 0) {
+                    påBakken = true;
+                    hoppFart = 0;
+                    mario.style.bottom = (elementRect.top - marioRect.height + 1) + 'px';
+                } else {
+                    mistetLiv();
+                }
+            } else if (element.classList.contains('spørsmålsblokk')) {
+                if (marioRect.top < elementRect.bottom && marioRect.top > elementRect.bottom - 10 && hoppFart < 0) {
+                    hoppFart = 0;
+                    liv += 2;
+                    oppdaterLivTeller();
+                    element.remove();
+                } else {
+                    // Forhindre Mario fra å gå gjennom spørsmålsblokker
+                    if (marioRect.right > elementRect.left && marioRect.right < elementRect.right) {
+                        mario.style.left = (elementRect.left - marioRect.width) + 'px';
+                    } else if (marioRect.left < elementRect.right && marioRect.left > elementRect.left) {
+                        mario.style.left = elementRect.right + 'px';
+                    }
+                    if (marioRect.bottom > elementRect.top && hoppFart > 0) {
+                        mario.style.bottom = (elementRect.top - marioRect.height) + 'px';
+                        påBakken = true;
+                        hoppFart = 0;
+                    }
+                }
             }
         }
     });
 
-    // Sjekk om Mario er utenfor spillområdet
     if (marioRect.right > spillRect.right || marioRect.left < spillRect.left) {
-        spillSlutt = true;
-        alert('Spill over! Du gikk ut av banen.');
+        mistetLiv();
     }
-    
-    console.log('Mario posisjon:', marioRect.bottom, 'Hopp fart:', hoppFart);
 }
 
-function påHinder() {
-    const marioRect = mario.getBoundingClientRect();
-    for (let hinder of hindre) {
-        const hinderRect = hinder.getBoundingClientRect();
-        if (
-            marioRect.right > hinderRect.left + 5 &&
-            marioRect.left < hinderRect.right - 5 &&
-            Math.abs(marioRect.bottom - hinderRect.top) < 5 &&
-            hoppFart >= 0
-        ) {
-            return hinder;
-        }
+function mistetLiv() {
+    liv--;
+    oppdaterLivTeller();
+    if (liv <= 0) {
+        avsluttSpill('Spill over! Du har mistet alle livene dine.');
+    } else {
+        posisjon = 400;
+        mario.style.left = posisjon + 'px';
+        mario.style.bottom = '50px';
+        hoppFart = 0;
+        påBakken = true;
     }
-    return null;
 }
+
+function oppdaterLivTeller() {
+    livTeller.textContent = `Liv: ${liv}`;
+}
+
+function avsluttSpill(melding) {
+    spillSlutt = true;
+    alert(melding);
+    startPåNyttKnapp.style.display = 'block';
+}
+
+function startPåNytt() {
+    spillSlutt = false;
+    posisjon = 400;
+    mario.style.left = posisjon + 'px';
+    mario.style.bottom = '50px';
+    hoppFart = 0;
+    påBakken = true;
+    bevegerHøyre = false;
+    bevegerVenstre = false;
+    liv = 3;
+    oppdaterLivTeller();
+    
+    // Fjern alle eksisterende spørsmålsblokker
+    document.querySelectorAll('.spørsmålsblokk').forEach(blokk => blokk.remove());
+    
+    // Tilbakestill hindre
+    hindre.forEach((hinder, index) => {
+        hinder.style.right = `${(index + 1) * 200}px`;
+    });
+    
+    // Legg til noen nye spørsmålsblokker
+    for (let i = 0; i < 2; i++) {
+        leggTilSpørsmålsblokk();
+    }
+    
+    startPåNyttKnapp.style.display = 'none';
+    requestAnimationFrame(spillLoop);
+}
+
+startPåNyttKnapp.addEventListener('click', startPåNytt);
 
 function spillLoop() {
     if (!spillSlutt) {
         oppdaterMario();
-        flyttHindre();
+        flyttHindreOgBlokker();
         sjekkKollisjon();
         requestAnimationFrame(spillLoop);
     }
